@@ -1,0 +1,172 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <time.h>
+
+void print_time()
+{
+    time_t now;
+    struct tm *time_info;
+    char buffer[80];
+
+    time(&now);
+    time_info = localtime(&now);
+
+    strftime(buffer, sizeof(buffer),
+             "%Y-%m-%d %H:%M:%S",
+             time_info);
+
+    printf("[%s] ", buffer);
+}
+
+int main()
+{
+    pid_t child_pid;
+    int status;
+    int choice;
+
+    printf("\n");
+    printf("====================================================\n");
+    printf("       PROCESS TERMINATION MESSAGE SYSTEM\n");
+    printf("====================================================\n");
+
+    printf("\n1. Normal Termination\n");
+    printf("2. Terminate using SIGTERM\n");
+    printf("3. Terminate using SIGKILL\n");
+    printf("4. Terminate using SIGINT\n");
+    printf("5. Exit\n");
+
+    printf("\nEnter your choice: ");
+    scanf("%d", &choice);
+
+    if (choice == 5)
+    {
+        printf("\nProgram exited by user.\n");
+        return 0;
+    }
+
+    if (choice < 1 || choice > 4)
+    {
+        printf("\nInvalid choice.\n");
+        return 1;
+    }
+
+    printf("\n----------------------------------------------------\n");
+
+    child_pid = fork();
+
+    if (child_pid < 0)
+    {
+        perror("fork failed");
+        return 1;
+    }
+
+    /* CHILD PROCESS */
+    if (child_pid == 0)
+    {
+        print_time();
+        printf("Child Process Started\n");
+        printf("Child PID  : %d\n", getpid());
+        printf("Parent PID : %d\n", getppid());
+
+        printf("\nChild Process is running...\n");
+        printf("Waiting for termination command...\n");
+
+        if (choice == 1)
+        {
+            sleep(3);
+
+            print_time();
+            printf("Child Process terminating normally...\n");
+
+            exit(0);
+        }
+        else
+        {
+            while (1)
+            {
+                sleep(1);
+            }
+        }
+    }
+
+    /* PARENT PROCESS */
+    else
+    {
+        printf("Parent PID : %d\n", getpid());
+        printf("Child PID  : %d\n", child_pid);
+
+        if (choice == 1)
+        {
+            printf("\nParent is waiting for child...\n");
+
+            waitpid(child_pid, &status, 0);
+        }
+        else
+        {
+            sleep(2);
+
+            printf("\n----------------------------------------------------\n");
+            printf("TERMINATING CHILD PROCESS\n");
+            printf("----------------------------------------------------\n");
+
+            if (choice == 2)
+            {
+                printf("Sending SIGTERM to child process...\n");
+                kill(child_pid, SIGTERM);
+            }
+            else if (choice == 3)
+            {
+                printf("Sending SIGKILL to child process...\n");
+                kill(child_pid, SIGKILL);
+            }
+            else if (choice == 4)
+            {
+                printf("Sending SIGINT to child process...\n");
+                kill(child_pid, SIGINT);
+            }
+
+            waitpid(child_pid, &status, 0);
+        }
+
+        printf("\n====================================================\n");
+        print_time();
+        printf("PROCESS TERMINATION MESSAGE\n");
+        printf("====================================================\n");
+
+        printf("Child PID : %d\n", child_pid);
+
+        if (WIFEXITED(status))
+        {
+            printf("Termination Type : NORMAL\n");
+            printf("Exit Status      : %d\n",
+                   WEXITSTATUS(status));
+        }
+        else if (WIFSIGNALED(status))
+        {
+            int signal_number = WTERMSIG(status);
+
+            printf("Termination Type : SIGNAL\n");
+            printf("Signal Number    : %d\n",
+                   signal_number);
+
+            if (signal_number == SIGTERM)
+                printf("Signal           : SIGTERM\n");
+            else if (signal_number == SIGKILL)
+                printf("Signal           : SIGKILL\n");
+            else if (signal_number == SIGINT)
+                printf("Signal           : SIGINT\n");
+            else
+                printf("Signal           : Other\n");
+        }
+
+        printf("====================================================\n");
+        printf("Parent Process Completed Successfully\n");
+        printf("====================================================\n\n");
+    }
+
+    return 0;
+}
